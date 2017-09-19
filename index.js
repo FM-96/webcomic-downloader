@@ -28,8 +28,8 @@ const moment = require('moment');
 const sanitize = require('sanitize-filename');
 
 const fs = require('fs');
-const http = require('http');
-const https = require('https');
+const http = require('follow-redirects').http;
+const https = require('follow-redirects').https;
 const path = require('path');
 const readline = require('readline');
 const Transform = require('stream').Transform;
