@@ -89,12 +89,11 @@ getUserInput()
 		for (let i = 0; i < validComicIds.length; ++i) {
 			const comic = comics[validComicIds[i]];
 			console.log(`Updating comic "${comic.name}"`);
+			drawProgress(null, null);
 			try {
 				const amountDownloaded = await updateComic(comic);
-				drawProgress(null, null);
 				console.log(`Downloaded ${amountDownloaded} new page${amountDownloaded === 1 ? '' : 's'}`);
 			} catch (err) {
-				drawProgress(null, null);
 				console.error(`Error while updating comic "${comic.name}": ${err}`);
 			}
 		}
@@ -133,11 +132,19 @@ function drawProgress(downloaded, found) {
 	const EL = '\x1b[K'; // Erase in Line
 
 	let firstLine, secondLine;
+
 	if (downloaded === null && found === null) {
-		// clean up progress bar so that the next console.log looks okay
-		process.stdout.write(EL + '\n' + EL + CPL);
+		// draw initial state progress bar
+		firstLine = '0 new images found';
+		secondLine = '[' + ' '.repeat(BAR_LENGTH) + ']';
+		process.stdout.write(EL + firstLine + '\n' + EL + secondLine + '\n');
 		return;
-	} else if (downloaded === null) {
+	}
+
+	// erase the progress bar that was drawn last call
+	process.stdout.write(CPL + EL + CPL + EL);
+
+	if (downloaded === null) {
 		firstLine = found + ' new images found';
 		let progressBar;
 		if (INDETERMINATE_STRIPED) {
@@ -158,7 +165,6 @@ function drawProgress(downloaded, found) {
 	}
 
 	process.stdout.write(EL + firstLine + '\n' + EL + secondLine + '\n');
-	process.stdout.write(CPL + CPL);
 }
 
 /**
