@@ -157,11 +157,16 @@ function drawProgress(downloaded, found) {
 		}
 		secondLine = '[' + progressBar + ']';
 	} else {
-		const percentDownloaded = downloaded / found;
-		const displayPercentDownloaded = String(Math.floor(percentDownloaded * 1000) / 10);
-		const progress = Math.floor(BAR_LENGTH * percentDownloaded);
-		firstLine = `${downloaded} / ${found} images downloaded (${displayPercentDownloaded}%)`;
-		secondLine = `[${'='.repeat(progress)}${' '.repeat(BAR_LENGTH - progress)}]`;
+		if (downloaded === 0 && found === 0) {
+			firstLine = `0 / 0 images downloaded`;
+			secondLine = `[${'='.repeat(BAR_LENGTH)}]`;
+		} else {
+			const percentDownloaded = downloaded / found;
+			const displayPercentDownloaded = String(Math.floor(percentDownloaded * 1000) / 10);
+			const progress = Math.floor(BAR_LENGTH * percentDownloaded);
+			firstLine = `${downloaded} / ${found} images downloaded (${displayPercentDownloaded}%)`;
+			secondLine = `[${'='.repeat(progress)}${' '.repeat(BAR_LENGTH - progress)}]`;
+		}
 	}
 
 	process.stdout.write(EL + firstLine + '\n' + EL + secondLine + '\n');
