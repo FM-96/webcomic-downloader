@@ -141,8 +141,8 @@ function drawProgress(downloaded, found) {
 		return;
 	}
 
-	// erase the progress bar that was drawn last call
-	process.stdout.write(CPL + EL + CPL + EL);
+	// move cursor back to the beginning, so that the previous progress bar will be overwritten
+	process.stdout.write(CPL + CPL);
 
 	if (downloaded === null) {
 		firstLine = found + ' new images found';
