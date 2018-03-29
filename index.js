@@ -422,7 +422,7 @@ async function updateComic(comicConfig) {
 		const pageObj = {
 			pageUrl: nextLinkToCheck,
 			pageTitle: comicConfig.pageTitle ? $(comicConfig.pageTitle).clone().children().remove().end().text().trim() : null,
-			titleText: comicConfig.titleText ? $(comicConfig.image).attr('title').trim() : null,
+			titleText: comicConfig.titleText ? ($(comicConfig.image).attr('title') || '').trim() : null,
 		};
 		// get image url
 		let $image;
