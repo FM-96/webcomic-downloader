@@ -94,7 +94,8 @@ getUserInput()
 				const amountDownloaded = await updateComic(comic);
 				console.log(`Downloaded ${amountDownloaded} new page${amountDownloaded === 1 ? '' : 's'}`);
 			} catch (err) {
-				console.error(`Error while updating comic "${comic.name}": ${err}`);
+				console.error(`Error while updating comic "${comic.name}":`);
+				console.error(err);
 			}
 		}
 		process.exit(0);
