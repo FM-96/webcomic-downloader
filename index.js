@@ -116,6 +116,27 @@ function dirExists(dirPath) {
 }
 
 /**
+ * Prints a message without interfering with the comic update progress bar
+ * @param {String|Array<String>} message The message(s) to print
+ * @returns {void}
+ */
+function drawMessage(message) {
+	const CPL = '\x1b[F'; // Cursor Previous Line
+	const EL = '\x1b[K'; // Erase in Line
+
+	const messageList = Array.isArray(message) ? message : [message];
+
+	// move cursor up two lines so that the progress bar is overwritten
+	process.stdout.write(CPL + CPL);
+
+	for (const msg of messageList) {
+		process.stdout.write(EL + msg + '\n');
+	}
+
+	drawProgress(null, null);
+}
+
+/**
  * Prints a well-formatted visualisation of the comic update progress
  * @param {?Number} downloaded How many new images have been downloaded, null if download hasn't started yet
  * @param {?Number} found How many new images have been found
@@ -458,8 +479,10 @@ async function updateComic(comicConfig) {
 			} else {
 				if (!dateWarning) {
 					dateWarning = true;
-					console.error('Invalid date format: ' + displayedDate + ' does not match ' + comicConfig.pageDate[1]);
-					console.error('(You will only get this warning once per comic)');
+					drawMessage([
+						`Invalid date format: "${displayedDate}" does not match "${comicConfig.pageDate[1]}"`,
+						'(You will only get this warning once per comic)',
+					]);
 				}
 				pageObj.pageDate = null;
 			}
