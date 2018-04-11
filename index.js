@@ -94,6 +94,7 @@ getUserInput()
 				const amountDownloaded = await updateComic(comic);
 				console.log(`Downloaded ${amountDownloaded} new page${amountDownloaded === 1 ? '' : 's'}`);
 			} catch (err) {
+				process.removeAllListeners('SIGINT');
 				console.error(`Error while updating comic "${comic.name}":`);
 				console.error(err);
 			}
@@ -407,6 +408,7 @@ async function saveImage(comicName, pageNumber, page) {
  */
 async function updateComic(comicConfig) {
 	let dateWarning = false;
+	let interrupted = false;
 
 	const existingPages = await loadExistingPages(comicConfig.name);
 	const newPages = [];
@@ -416,6 +418,14 @@ async function updateComic(comicConfig) {
 	} else {
 		lastSaved = null;
 	}
+
+	process.once('SIGINT', () => {
+		// interrupted while searching for new pages
+		interrupted = true;
+		drawMessage('Interrupted by user...');
+		drawProgress(null, newPages.length);
+	});
+
 	// get link for latest page
 	let nextLinkToCheck = await findLatestPageUrl(comicConfig);
 	if (!nextLinkToCheck) {
@@ -423,6 +433,10 @@ async function updateComic(comicConfig) {
 	}
 	// check pages until you get the last saved one
 	for (;;) {
+		if (interrupted) {
+			return 0;
+		}
+
 		// check pages until you get the last saved one
 		let pageHtml;
 		try {
@@ -512,7 +526,20 @@ async function updateComic(comicConfig) {
 	let pageNumber = existingPages.length;
 	let downloaded = 0;
 	drawProgress(downloaded, newPages.length);
+
+	process.removeAllListeners('SIGINT');
+	process.once('SIGINT', () => {
+		// interrupted while downloading new pages
+		interrupted = true;
+		drawMessage('Interrupted by user...');
+		drawProgress(downloaded, newPages.length);
+	});
+
 	for (const page of newPages) {
+		if (interrupted) {
+			break;
+		}
+
 		pageNumber++;
 		try {
 			await saveImage(comicConfig.name, pageNumber, page);
@@ -526,6 +553,8 @@ async function updateComic(comicConfig) {
 		}
 	}
 	await saveExistingPages(comicConfig.name, existingPages);
+
+	process.removeAllListeners('SIGINT');
 
 	return downloaded;
 }
