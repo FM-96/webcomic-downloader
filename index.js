@@ -565,6 +565,9 @@ async function updateComic(comicConfig) {
  * @returns {Boolean} Whether the configuration is valid
  */
 function validateComicConfig(comicConfig) {
+	if (comicConfig.disabled) {
+		return false;
+	}
 	if (typeof comicConfig.name !== 'string' || comicConfig.name.length === 0 || sanitize(comicConfig.name) !== comicConfig.name) {
 		return false;
 	}
