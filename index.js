@@ -36,7 +36,6 @@ const https = require('follow-redirects').https;
 const path = require('path');
 const readline = require('readline');
 const Transform = require('stream').Transform;
-const URL = require('url').URL;
 
 const turndownService = new TurndownService({
 	hr: '- - -',
