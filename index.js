@@ -505,8 +505,13 @@ async function updateComic(comicConfig) {
 		}
 		// get and parse commentary
 		if (comicConfig.commentary) {
-			const commentaryHtml = $(comicConfig.commentary).html().trim();
-			pageObj.commentary = turndownService.turndown(commentaryHtml).replace(/(?<!\r)\n/g, '\r\n');
+			const $commentary = $(comicConfig.commentary);
+			if ($commentary.get(0)) {
+				const commentaryHtml = $commentary.html().trim();
+				pageObj.commentary = turndownService.turndown(commentaryHtml).replace(/(?<!\r)\n/g, '\r\n');
+			} else {
+				pageObj.commentary = null;
+			}
 		} else {
 			pageObj.commentary = null;
 		}
