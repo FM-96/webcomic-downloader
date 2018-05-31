@@ -505,8 +505,13 @@ async function updateComic(comicConfig) {
 		}
 		// get and parse commentary
 		if (comicConfig.commentary) {
-			const $commentary = $(comicConfig.commentary);
+			const $commentary = $(comicConfig.commentary).clone();
 			if ($commentary.get(0)) {
+				$commentary.find('a').each(function () {
+					if ($(this).attr('href') && $(this).attr('href').startsWith('/')) {
+						$(this).attr('href', resolveUrl($(this).attr('href'), comicConfig.firstPageUrl));
+					}
+				});
 				const commentaryHtml = $commentary.html().trim();
 				pageObj.commentary = turndownService.turndown(commentaryHtml).replace(/(?<!\r)\n/g, '\r\n');
 			} else {
