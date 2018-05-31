@@ -375,7 +375,7 @@ async function saveImage(comicName, pageNumber, page) {
 		image = await httpRequest(page.image);
 	} catch (err) {
 		// Try one more time in case of temporary network issue
-		console.error(`Error while downloading image ${page.image} on page ${page.pageUrl}; retrying`);
+		drawMessage(`Error while downloading image ${page.image} on page ${page.pageUrl}; retrying`);
 		try {
 			image = await httpRequest(page.image);
 		} catch (err2) {
@@ -467,7 +467,7 @@ async function updateComic(comicConfig) {
 			pageHtml = await fetchComicPage(nextLinkToCheck);
 		} catch (err) {
 			// Try one more time in case of temporary network issue
-			console.error(`Error while downloading page ${nextLinkToCheck}; retrying`);
+			drawMessage(`Error while downloading page ${nextLinkToCheck}; retrying`);
 			try {
 				pageHtml = await fetchComicPage(nextLinkToCheck);
 			} catch (err2) {
