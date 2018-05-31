@@ -8,6 +8,7 @@
  * @property {String} image CSS selector pointing either to the comic image or to a link to the image
  * @property {?String} altImage Optional CSS selector for an alternate image, this takes precedence over image
  * @property {Boolean} titleText Whether the comic has (meaningful) title texts
+ * @property {?String} commentary CSS selector pointing to the commentary (null if there is no commentary)
  * @property {?Array.<String>} pageDate Array with two strings and an optional boolean (null if there is no date): First a CSS selector pointing to the page date, second the format of the date; a truthy value as the third element means strict parsing should NOT be used
  * @property {?String} pageTitle CSS selector pointing to the page title (null if there is no title)
  */
@@ -20,12 +21,14 @@
  * @property {?String} pageDate Date of the page
  * @property {?String} pageTitle Title of the page
  * @property {?String} titleText Title text of the image
+ * @property {?String} commentary Commentary / Author's Notes for the image
  */
 
 const cheerio = require('cheerio');
 const fileType = require('file-type');
 const moment = require('moment');
 const sanitize = require('sanitize-filename');
+const TurndownService = require('turndown');
 
 const fs = require('fs');
 const http = require('follow-redirects').http;
@@ -34,6 +37,20 @@ const path = require('path');
 const readline = require('readline');
 const Transform = require('stream').Transform;
 const URL = require('url').URL;
+
+const turndownService = new TurndownService({
+	hr: '- - -',
+	codeBlockStyle: 'fenced',
+	fence: '```',
+});
+turndownService.addRule('no-img', {
+	filter: 'img',
+	replacement: () => '',
+});
+turndownService.addRule('underline', {
+	filter: 'u',
+	replacement: (content) => `__${content}__`,
+});
 
 // if __dirname === current working dir, then outPath = ./comics, else outPath = .
 let outPath;
@@ -398,6 +415,14 @@ async function saveImage(comicName, pageNumber, page) {
 		fs.writeFileSync(path.join(outPath, comicName, 'title texts', imageName + ' Title Text.txt'), page.titleText);
 	}
 
+	// save commentary if there is one
+	if (page.commentary) {
+		if (!dirExists(path.join(outPath, comicName, 'commentaries'))) {
+			fs.mkdirSync(path.join(outPath, comicName, 'commentaries'));
+		}
+		fs.writeFileSync(path.join(outPath, comicName, 'commentaries', imageName + ' Commentary.txt'), page.commentary);
+	}
+
 	return;
 }
 
@@ -478,6 +503,13 @@ async function updateComic(comicConfig) {
 		pageObj.image = imageUrl;
 		if (!pageObj.image) {
 			throw new Error('Image not found: ' + pageObj.pageUrl);
+		}
+		// get and parse commentary
+		if (comicConfig.commentary) {
+			const commentaryHtml = $(comicConfig.commentary).html().trim();
+			pageObj.commentary = turndownService.turndown(commentaryHtml).replace(/(?<!\r)\n/g, '\r\n');
+		} else {
+			pageObj.commentary = null;
 		}
 		// get date in YYYY-MM-DD format if possible
 		if (comicConfig.pageDate) {
@@ -591,6 +623,9 @@ function validateComicConfig(comicConfig) {
 		return false;
 	}
 	if (typeof comicConfig.titleText !== 'boolean') {
+		return false;
+	}
+	if (comicConfig.commentary !== null && (typeof comicConfig.commentary !== 'string' || comicConfig.commentary.length === 0)) {
 		return false;
 	}
 	if (comicConfig.pageDate !== null && (!Array.isArray(comicConfig.pageDate) || comicConfig.pageDate.length < 2)) {
