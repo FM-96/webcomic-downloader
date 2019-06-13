@@ -11,6 +11,7 @@
  * @property {?String} commentary CSS selector pointing to the commentary (null if there is no commentary)
  * @property {?Array.<String>} pageDate Array with two strings and an optional boolean (null if there is no date): First a CSS selector pointing to the page date, second the format of the date; a truthy value as the third element means strict parsing should NOT be used
  * @property {?String} pageTitle CSS selector pointing to the page title (null if there is no title)
+ * @property {?Object} cookies Key-value pairs defining the cookies to send with requests to the comic website
  */
 
 /**
@@ -29,6 +30,7 @@ const fileType = require('file-type');
 const got = require('got');
 const moment = require('moment');
 const sanitize = require('sanitize-filename');
+const tough = require('tough-cookie');
 const TurndownService = require('turndown');
 
 const fs = require('fs');
@@ -212,10 +214,11 @@ function drawProgress(downloaded, found) {
 /**
  * Downloads a comic page and returns it as string
  * @param {String} pageUrl The url of the page to download
+ * @param {Object} gotOptions Additional options to be passed to got
  * @returns {Promise.<String>} The HTML of the downloaded page
  */
-async function fetchComicPage(pageUrl) {
-	const response = await got(pageUrl);
+async function fetchComicPage(pageUrl, gotOptions) {
+	const response = await got(pageUrl, {cookieJar: gotOptions.cookieJar});
 	return response.body;
 }
 
@@ -236,11 +239,12 @@ function fileExists(filePath) {
 /**
  * Finds a link to the latest page of the comic
  * @param {ComicConfig} comicConfig The configuration of the comic
+ * @param {Object} gotOptions Additional options to be passed to got
  * @returns {Promise.<String>} The link to the latest comic page
  */
-async function findLatestPageUrl(comicConfig) {
+async function findLatestPageUrl(comicConfig, gotOptions) {
 	if (typeof comicConfig.latestPageLink === 'string') {
-		const pageHtml = await fetchComicPage(comicConfig.firstPageUrl);
+		const pageHtml = await fetchComicPage(comicConfig.firstPageUrl, gotOptions);
 		const $ = cheerio.load(pageHtml);
 		const latestPageUrl = $(comicConfig.latestPageLink).attr('href');
 		if (!latestPageUrl) {
@@ -250,7 +254,7 @@ async function findLatestPageUrl(comicConfig) {
 	} else {
 		let nextStepUrl = comicConfig.firstPageUrl;
 		for (const nextStep of comicConfig.latestPageLink) {
-			const pageHtml = await fetchComicPage(nextStepUrl);
+			const pageHtml = await fetchComicPage(nextStepUrl, gotOptions);
 			const $ = cheerio.load(pageHtml);
 			nextStepUrl = $(nextStep).attr('href');
 			if (!nextStepUrl) {
@@ -327,18 +331,25 @@ function saveExistingPages(comicName, existingPages) {
  * @param {String} comicName The name of the comic the image belongs to
  * @param {Number} pageNumber The page number of the image
  * @param {Page} page The page that should be saved
+ * @param {Object} gotOptions Additional options to be passed to got
  * @returns {Promise.<void>} Promise signalling that the save was successful
  */
-async function saveImage(comicName, pageNumber, page) {
+async function saveImage(comicName, pageNumber, page, gotOptions) {
 	let image;
 	try {
-		const response = await got(page.image, {encoding: null});
+		const response = await got(page.image, {
+			cookieJar: gotOptions.cookieJar,
+			encoding: null,
+		});
 		image = response.body;
 	} catch (err) {
 		// Try one more time in case of temporary network issue
 		drawMessage(`Error while downloading image ${page.image} on page ${page.pageUrl}; retrying`);
 		try {
-			const response = await got(page.image, {encoding: null});
+			const response = await got(page.image, {
+				cookieJar: gotOptions.cookieJar,
+				encoding: null,
+			});
 			image = response.body;
 		} catch (err2) {
 			throw err2;
@@ -412,8 +423,18 @@ async function updateComic(comicConfig) {
 		drawProgress(null, newPages.length);
 	});
 
+	const gotOptions = {};
+	if (comicConfig.cookies) {
+		const homeUrl = resolveUrl('/', comicConfig.firstPageUrl);
+		const jar = new tough.CookieJar();
+		for (const key in comicConfig.cookies) {
+			jar.setCookieSync(`${key}=${comicConfig.cookies[key]}`, homeUrl);
+		}
+		gotOptions.cookieJar = jar;
+	}
+
 	// get link for latest page
-	let nextLinkToCheck = await findLatestPageUrl(comicConfig);
+	let nextLinkToCheck = await findLatestPageUrl(comicConfig, gotOptions);
 	if (!nextLinkToCheck) {
 		throw new Error('Link to latest page not found');
 	}
@@ -426,12 +447,12 @@ async function updateComic(comicConfig) {
 		// check pages until you get the last saved one
 		let pageHtml;
 		try {
-			pageHtml = await fetchComicPage(nextLinkToCheck);
+			pageHtml = await fetchComicPage(nextLinkToCheck, gotOptions);
 		} catch (err) {
 			// Try one more time in case of temporary network issue
 			drawMessage(`Error while downloading page ${nextLinkToCheck}; retrying`);
 			try {
-				pageHtml = await fetchComicPage(nextLinkToCheck);
+				pageHtml = await fetchComicPage(nextLinkToCheck, gotOptions);
 			} catch (err2) {
 				// TODO save already found newPages
 				throw err2;
@@ -545,7 +566,7 @@ async function updateComic(comicConfig) {
 
 		pageNumber++;
 		try {
-			await saveImage(comicConfig.name, pageNumber, page);
+			await saveImage(comicConfig.name, pageNumber, page, gotOptions);
 			existingPages.push(page.image);
 			downloaded++;
 			drawProgress(downloaded, newPages.length);
@@ -603,6 +624,9 @@ function validateComicConfig(comicConfig) {
 		return false;
 	}
 	if (comicConfig.pageTitle !== null && (typeof comicConfig.pageTitle !== 'string' || comicConfig.pageTitle.length === 0)) {
+		return false;
+	}
+	if (comicConfig.cookies !== null && (typeof comicConfig.cookies !== 'object' || Array.isArray(comicConfig.cookies))) {
 		return false;
 	}
 	return true;
