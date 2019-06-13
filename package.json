@@ -11,7 +11,7 @@
   "dependencies": {
     "cheerio": "^1.0.0-rc.2",
     "file-type": "^6.1.0",
-    "follow-redirects": "^1.2.4",
+    "got": "^9.6.0",
     "moment": "^2.18.1",
     "sanitize-filename": "^1.6.1",
     "turndown": "^4.0.2"

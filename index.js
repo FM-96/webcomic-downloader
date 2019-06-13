@@ -26,16 +26,14 @@
 
 const cheerio = require('cheerio');
 const fileType = require('file-type');
+const got = require('got');
 const moment = require('moment');
 const sanitize = require('sanitize-filename');
 const TurndownService = require('turndown');
 
 const fs = require('fs');
-const http = require('follow-redirects').http;
-const https = require('follow-redirects').https;
 const path = require('path');
 const readline = require('readline');
-const Transform = require('stream').Transform;
 
 const turndownService = new TurndownService({
 	hr: '- - -',
@@ -217,8 +215,8 @@ function drawProgress(downloaded, found) {
  * @returns {Promise.<String>} The HTML of the downloaded page
  */
 async function fetchComicPage(pageUrl) {
-	const pageContent = await httpRequest(pageUrl);
-	return pageContent.toString();
+	const response = await got(pageUrl);
+	return response.body;
 }
 
 /**
@@ -282,44 +280,6 @@ function getUserInput() {
 }
 
 /**
- * Executes a HTTP request and returns a Buffer containing the response
- * @param {*} url The URL to make a request to
- * @returns {Promise.<Buffer>} The response to the request
- */
-function httpRequest(url) {
-	return new Promise((resolve, reject) => {
-		let protocol;
-		try {
-			protocol = /^([a-z]+):\/\//.exec(url)[1];
-		} catch (err) {
-			throw new Error('Unsupported URL: ' + url);
-		}
-		let requestLib;
-		if (protocol === 'http') {
-			requestLib = http;
-		} else if (protocol === 'https') {
-			requestLib = https;
-		} else {
-			reject(new Error('Unsupported protocol: ' + protocol));
-			return;
-		}
-		const request = requestLib.request(url, response => {
-			const responseData = new Transform();
-			response.on('data', data => {
-				responseData.push(data);
-			});
-			response.on('end', () => {
-				resolve(responseData.read());
-			});
-		});
-		request.end();
-		request.on('error', err => {
-			reject(err);
-		});
-	});
-}
-
-/**
  * Reads array of already downloaded pages from disk
  * @param {String} comicName The name of the comic
  * @returns {Array.<String>} Array with the titles of all already downloaded pages
@@ -372,12 +332,14 @@ function saveExistingPages(comicName, existingPages) {
 async function saveImage(comicName, pageNumber, page) {
 	let image;
 	try {
-		image = await httpRequest(page.image);
+		const response = await got(page.image, {encoding: null});
+		image = response.body;
 	} catch (err) {
 		// Try one more time in case of temporary network issue
 		drawMessage(`Error while downloading image ${page.image} on page ${page.pageUrl}; retrying`);
 		try {
-			image = await httpRequest(page.image);
+			const response = await got(page.image, {encoding: null});
+			image = response.body;
 		} catch (err2) {
 			throw err2;
 		}
