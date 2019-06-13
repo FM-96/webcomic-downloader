@@ -1,3 +1,4 @@
 node_modules/*
 comics/*
 comics.json
+package-lock.json
